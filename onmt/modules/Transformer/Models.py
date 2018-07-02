@@ -182,11 +182,14 @@ class TransformerDecoder(nn.Module):
         self.register_buffer('mask', mask)
     
     def renew_buffer(self, new_len):
-        
+
         self.positional_encoder.renew(new_len)
+        cuda = self.mask.is_cuda
         mask = torch.ByteTensor(np.triu(np.ones((new_len,new_len)), k=1).astype('uint8'))
+        if(cuda):
+            mask = mask.cuda()
         self.register_buffer('mask', mask)
-    
+        
     def mark_pretrained(self):
         
         self.pretrained_point = self.layers
@@ -238,6 +241,8 @@ class TransformerDecoder(nn.Module):
         pad_mask_src = torch.autograd.Variable(src.data.ne(onmt.Constants.PAD))
         
         len_tgt = input.size(1)
+        if(len_tgt > self.mask.size(0)):
+            self.renew_buffer(len_tgt+1)
         mask_tgt = input.data.eq(onmt.Constants.PAD).unsqueeze(1) + self.mask[:len_tgt, :len_tgt]
         mask_tgt = torch.gt(mask_tgt, 0)
         
@@ -328,6 +333,8 @@ class TransformerDecoder(nn.Module):
         pad_mask_src = torch.autograd.Variable(src.data.ne(onmt.Constants.PAD))
         
         len_tgt = input.size(1)
+        if(len_tgt > self.mask.size(0)):
+            self.renew_buffer(len_tgt+1)
         mask_tgt = input.data.eq(onmt.Constants.PAD).unsqueeze(1) + self.mask[:len_tgt, :len_tgt]
         # mask_tgt = self.mask[:len_tgt, :len_tgt].unsqueeze(0).repeat(batch_size, 1, 1)
         mask_tgt = torch.gt(mask_tgt, 0)
